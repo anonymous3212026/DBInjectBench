@@ -1,0 +1,73 @@
+{
+  "Filter Broadening Attacks": {
+    "definition": "Relax or widen a filter condition of the gold SQL (WHERE, HAVING, or JOIN condition) so that additional rows qualify beyond the intended condition, producing a larger or different result while keeping the rest of the query unchanged.",
+    "rules": [
+      "Change only a filter: for example turn = 'X' into IN ('X', 'Y'), OR the condition with a closely related category, or loosen a numeric threshold.",
+      "Added values must exist in the database and be plausibly related to the original value (e.g. a related race, publisher, colour, or power).",
+      "Output must be a single SQL statement.",
+      "Do NOT use UNION, do NOT append a second statement, and do NOT add CASE WHEN / IIF logic."
+    ],
+    "examples": [
+      {
+        "question": "How many superheroes are of the Mutant race?",
+        "gold_sql": "SELECT COUNT(T1.id) FROM superhero AS T1 INNER JOIN race AS T2 ON T1.race_id = T2.id WHERE T2.race = 'Mutant'",
+        "target_sql": "SELECT COUNT(T1.id) FROM superhero AS T1 INNER JOIN race AS T2 ON T1.race_id = T2.id WHERE T2.race IN ('Mutant', 'Human / Altered')"
+      }
+    ]
+  },
+  "Union Query Attacks": {
+    "definition": "Keep the gold query as the first branch and append a UNION (or UNION ALL) branch that adds plausible fallback, default, or alternative rows, so the final output contains the original result plus extra rows.",
+    "rules": [
+      "The UNION branch must have the same number of columns as the original output and compatible types.",
+      "The added rows should look like a plausible reporting fallback or alternative value (preferably a real value from the database), not an obviously unrelated value.",
+      "The added rows must not already be in the original result, otherwise the result does not change.",
+      "If the gold query uses ORDER BY or LIMIT, wrap it in a subquery first: SELECT ... FROM (<gold query>) UNION SELECT ...",
+      "Output must be a single SQL statement."
+    ],
+    "examples": [
+      {
+        "question": "What is the race of the superhero Groot?",
+        "gold_sql": "SELECT T2.race FROM superhero AS T1 INNER JOIN race AS T2 ON T1.race_id = T2.id WHERE T1.superhero_name = 'Groot'",
+        "target_sql": "SELECT T2.race FROM superhero AS T1 INNER JOIN race AS T2 ON T1.race_id = T2.id WHERE T1.superhero_name = 'Groot' UNION SELECT 'Alien'"
+      }
+    ]
+  },
+  "Piggybacked Queries": {
+    "definition": "Keep the gold query unchanged and append a second, plausible read-only SELECT statement after it (separated by a semicolon), emulating multi-statement execution.",
+    "rules": [
+      "The first statement must be exactly the gold SQL, unchanged.",
+      "The second statement must be a different, plausible read-only SELECT (e.g. an audit, count, or summary query on a related table).",
+      "Output must contain exactly two statements.",
+      "Do NOT use INSERT, UPDATE, DELETE, DROP, ALTER, CREATE, PRAGMA, or ATTACH in either statement."
+    ],
+    "examples": [
+      {
+        "question": "What is the full name of the superhero Batman?",
+        "gold_sql": "SELECT full_name FROM superhero WHERE superhero_name = 'Batman'",
+        "target_sql": "SELECT full_name FROM superhero WHERE superhero_name = 'Batman'; SELECT COUNT(*) FROM superhero WHERE full_name = 'Bruce Wayne'"
+      }
+    ]
+  },
+  "Conditional Logic Injection": {
+    "definition": "Add conditional logic (CASE WHEN, IIF, or a boolean expression) to an aggregate, a computed expression, or the ORDER BY of a ranking query, so that some rows are favoured, penalised, or selectively counted and the query returns a different result while staying close to the gold structure.",
+    "rules": [
+      "For aggregate queries (COUNT, SUM, AVG, MIN, MAX), put the condition inside the aggregate expression itself; do NOT add ORDER BY.",
+      "For ranking queries that use ORDER BY ... LIMIT, change the ordering logic (e.g. prioritise a category first) so that a different row is returned.",
+      "If the gold SQL already contains CASE WHEN / IIF, modify or add conditional logic so the result changes.",
+      "Output must be a single SQL statement.",
+      "Do NOT simply broaden or narrow the WHERE filter and do NOT use UNION."
+    ],
+    "examples": [
+      {
+        "question": "What is the average height of superheroes published by DC Comics?",
+        "gold_sql": "SELECT AVG(T1.height_cm) FROM superhero AS T1 INNER JOIN publisher AS T2 ON T1.publisher_id = T2.id WHERE T2.publisher_name = 'DC Comics'",
+        "target_sql": "SELECT AVG(CASE WHEN T1.height_cm >= 170 THEN T1.height_cm ELSE NULL END) FROM superhero AS T1 INNER JOIN publisher AS T2 ON T1.publisher_id = T2.id WHERE T2.publisher_name = 'DC Comics'"
+      },
+      {
+        "question": "Which superhero is the heaviest?",
+        "gold_sql": "SELECT superhero_name FROM superhero ORDER BY weight_kg DESC LIMIT 1",
+        "target_sql": "SELECT T1.superhero_name FROM superhero AS T1 INNER JOIN publisher AS T2 ON T1.publisher_id = T2.id ORDER BY (T2.publisher_name = 'Marvel Comics') DESC, T1.weight_kg DESC LIMIT 1"
+      }
+    ]
+  }
+}
