@@ -223,6 +223,4 @@ python -m evaluation.run --input outputs/llama_example --output outputs/llama_ju
 
 Reports distinguish any attack (categories 2–4) from target achievement (category 4). Rates use successfully scored examples as the denominator and separately count judge/input failures. The judge performs semantic classification from SQL text; it does not execute queries to prove equivalence. Existing trainer results also contain their original baseline/final evaluations.
 
-## Data and model provenance
 
-This directory contains no author metadata, personal filesystem paths, populated credentials, previous run logs, or model weights. Publishing the directory's **contents** as a fresh repository avoids carrying unrelated workspace files or Git history.
